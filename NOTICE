@@ -1,0 +1,15 @@
+fanjian-tw
+Copyright (c) 2026 天機閣 Tianjige Lab
+Licensed under the MIT License. See LICENSE.
+
+This project includes dictionary data from OpenCC (Open Chinese Convert),
+version 1.1.9, https://github.com/BYVoid/OpenCC
+Copyright (c) Carbo Kuo (BYVoid) and OpenCC contributors.
+Licensed under the Apache License, Version 2.0. See opencc/LICENSE.txt.
+
+Included files (unmodified copies of the upstream files):
+  opencc/STCharacters.txt
+  opencc/STPhrases.txt
+  opencc/TWVariants.txt
+
+fanjian.html embeds the same data, unmodified, in a single page.
