@@ -1,0 +1,116 @@
+<!doctype html>
+<!-- fanjian-tw | MIT License | Copyright (c) 2026 天機閣 Tianjige Lab | 內含 OpenCC 1.1.9 詞表資料（Apache License 2.0）| https://github.com/tianjige-lab/fanjian-tw -->
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>繁簡轉換 網頁版</title>
+<style>
+  body { font-family: "Microsoft JhengHei", "PMingLiU", sans-serif; background: #f6f5f1; color: #222; margin: 0; padding: 24px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .ver { color: #777; font-size: 13px; margin-bottom: 16px; }
+  #drop { border: 3px dashed #999; border-radius: 10px; background: #fff; padding: 40px 16px; text-align: center; font-size: 18px; cursor: pointer; }
+  #drop.on { border-color: #2a7; background: #effaf3; }
+  #drop small { display: block; color: #666; font-size: 14px; margin-top: 10px; line-height: 1.7; }
+  .item { background: #fff; border: 1px solid #ddd; border-radius: 8px; margin-top: 16px; padding: 12px 16px; }
+  .item.err { border-color: #d55; background: #fff4f4; }
+  .item h2 { font-size: 16px; margin: 0 0 8px; }
+  .item button { font-size: 14px; padding: 4px 12px; margin-right: 8px; cursor: pointer; }
+  .item pre { white-space: pre-wrap; font-family: "MingLiU", monospace; font-size: 13px; background: #fafafa; border: 1px solid #eee; padding: 8px; max-height: 360px; overflow: auto; }
+  #busy { display: none; margin-top: 12px; color: #a60; }
+</style>
+</head>
+<body>
+<h1>繁簡轉換（簡體稿 →  Big5 TXT）</h1>
+<div class="ver">__VERSION__（網頁版）　全部在這台電腦上轉，檔案不會上傳到任何地方，不用連網。</div>
+<div id="drop">把簡體稿拖到這個框裡（可以一次拖很多個）<br>或點這裡選檔
+  <small>收：.txt（UTF-8、GBK 都可以）、.docx<br>
+  舊版 Word 的 .doc 不能直接拖：請用 Word 打開，「另存新檔」存成「純文字」（編碼選 Unicode），再拖那個 txt 進來。<br>
+  轉好會自動下載「原檔名-b5.txt」；下方會顯示報告，請看一眼。</small>
+</div>
+<input type="file" id="pick" multiple accept=".txt,.docx,.doc" style="display:none">
+<div id="busy">轉換中…</div>
+<div id="list"></div>
+
+<script id="fjdata" type="application/json">__DATA__</script>
+<script id="fjcore">
+__CORE__
+</script>
+<script>
+(function () {
+  var VERSION = "__VERSION__（網頁版）", ctx = null;
+  var drop = document.getElementById("drop"), pick = document.getElementById("pick"),
+      list = document.getElementById("list"), busy = document.getElementById("busy");
+
+  function getCtx() {
+    if (!ctx) ctx = FJ.build(JSON.parse(document.getElementById("fjdata").textContent));
+    return ctx;
+  }
+
+  function save(name, parts, type) {
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob(parts, { type: type }));
+    a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+
+  function show(name, res, err) {
+    var box = document.createElement("div");
+    box.className = "item" + (err ? " err" : "");
+    var h = document.createElement("h2");
+    box.appendChild(h);
+    if (err) {
+      h.textContent = "✗ " + name;
+      var p = document.createElement("div"); p.textContent = err; box.appendChild(p);
+    } else {
+      h.textContent = "✓ " + name + " → " + res.outName + "　缺字 " + res.missingKinds + " 種　章 " + res.chapters;
+      var b1 = document.createElement("button"), b2 = document.createElement("button"), pre = document.createElement("pre");
+      b1.textContent = "再下載一次 " + res.outName;
+      b1.onclick = function () { save(res.outName, [res.b5], "text/plain"); };
+      b2.textContent = "下載報告";
+      b2.onclick = function () { save(res.reportName, ["﻿" + res.report], "text/plain;charset=utf-8"); };
+      pre.textContent = res.report;
+      box.appendChild(b1); box.appendChild(b2); box.appendChild(pre);
+    }
+    list.insertBefore(box, list.firstChild);
+  }
+
+  function run(files) {
+    files = Array.prototype.filter.call(files, function (f) {
+      var stem = f.name.replace(/\.[^.]*$/, "");
+      return f.name.indexOf("~$") !== 0 && !/-b5$|-報告$|-b5-/.test(stem);
+    });
+    if (!files.length) return;
+    busy.style.display = "block";
+    setTimeout(function () {
+      var c;
+      try { c = getCtx(); } catch (e) { busy.style.display = "none"; alert(e.message); return; }
+      var i = 0;
+      (function next() {
+        if (i >= files.length) { busy.style.display = "none"; return; }
+        var f = files[i++], rd = new FileReader();
+        rd.onload = function () {
+          try {
+            var res = FJ.convert(f.name, new Uint8Array(rd.result), c, VERSION);
+            save(res.outName, [res.b5], "text/plain");
+            show(f.name, res);
+          } catch (e) { show(f.name, null, e.message); }
+          setTimeout(next, 50);
+        };
+        rd.onerror = function () { show(f.name, null, "讀不到這個檔"); setTimeout(next, 50); };
+        rd.readAsArrayBuffer(f);
+      })();
+    }, 30);
+  }
+
+  drop.onclick = function () { pick.click(); };
+  pick.onchange = function () { run(pick.files); pick.value = ""; };
+  drop.ondragover = function (e) { e.preventDefault(); drop.className = "on"; };
+  drop.ondragleave = function () { drop.className = ""; };
+  drop.ondrop = function (e) { e.preventDefault(); drop.className = ""; run(e.dataTransfer.files); };
+  document.addEventListener("dragover", function (e) { e.preventDefault(); });
+  document.addEventListener("drop", function (e) { e.preventDefault(); });
+})();
+</script>
+</body>
+</html>
